@@ -1,5 +1,3 @@
-# Global-Super-Store
-
 You are a Senior Data Scientist with 10+ years of experience in retail analytics and ML engineering. I have completed full EDA on the Global Superstore Sales dataset. Now perform ADVANCED FEATURE ENGINEERING to prepare this dataset for ML model training (Linear Regression, Random Forest, XGBoost).
 
 ---
