@@ -76,67 +76,66 @@ After all three models are trained and evaluated, print the following:
 7. Residual distribution plot for the best model
 8. Print: which features contributed most to profit prediction and which features had near-zero importance (candidates for removal)
 
+You are a Senior Data Scientist. I completed feature engineering till Section 8 on Global Superstore Sales dataset (51,290 rows). Target variable is Profit. Some engineered features like discount_bin, discount_bucket etc. are causing multicollinearity. Continue from here section by section.
+
 ---
 
+### SECTION 9: DROP REDUNDANT AND MULTICOLLINEAR FEATURES
 
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import RobustScaler, OneHotEncoder, OrdinalEncoder
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor
-from xgboost import XGBRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+- Print current column list
+- Drop these columns which cause multicollinearity or are redundant:
+  - discount_bin (visualization feature, redundant with Discount)
+  - discount_bucket (redundant with high_discount_flag and Discount)
+  - effective_price (derived from Sales and Discount which are already present)
+  - profit_margin (leakage — contains Profit)
+  - is_loss (leakage — derived from Profit)
+  - shipping_days (zero variance)
+  - Country (high cardinality, already captured by Market and Region)
+- After dropping, print remaining column list and shape
 
-# --- STEP 1: LOG TRANSFORM SKEWED COLUMNS ---
-df['log_sales'] = np.log1p(df['Sales'])
-df['log_shipping_cost'] = np.log1p(df['Shipping Cost'])
+---
 
-# --- STEP 2: DEFINE FEATURES AND TARGET ---
-X = df.drop(columns=['Profit', 'Sales', 'Shipping Cost'])
-y = df['Profit']
+### SECTION 10: LOG TRANSFORM SKEWED FEATURES
 
-# --- STEP 3: TRAIN TEST SPLIT ---
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+- Apply np.log1p to Sales and Shipping Cost
+- Drop original Sales and Shipping Cost columns after creating log versions
+- Print skewness before and after for both columns
 
-# --- STEP 4: DEFINE COLUMN GROUPS ---
-num_cols = ['Quantity', 'Discount', 'log_sales', 'log_shipping_cost', 'Year', 'weeknum']
+---
 
-cat_cols = ['Category', 'Segment', 'Ship Mode', 'Market', 'Region', 'Sub-Category']
+### SECTION 11: DEFINE FEATURES AND TARGET THEN SPLIT
 
-ord_col = ['Order Priority']
+- Drop Profit from X, assign to y
+- Print X.shape and y.shape
+- Train test split 80/20 random_state=42
+- Print X_train.shape and X_test.shape
 
-# --- STEP 5: PREPROCESSOR ---
-preprocessor = ColumnTransformer(transformers=[
-    ('num', RobustScaler(), num_cols),
-    ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), cat_cols),
-    ('ord', OrdinalEncoder(categories=[['Low', 'Medium', 'High', 'Critical']]), ord_col)
-])
+---
 
-# --- STEP 6: TRAIN ALL 3 MODELS ---
-models = {
-    'Linear Regression': LinearRegression(),
-    'Random Forest': RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1),
-    'XGBoost': XGBRegressor(n_estimators=200, learning_rate=0.05, max_depth=6, random_state=42, n_jobs=-1)
-}
+### SECTION 12: PREPROCESSOR AND MODEL TRAINING
 
-results = {}
+Define column groups:
+- num_cols = all remaining numerical columns
+- cat_cols = [Category, Segment, Ship Mode, Market, Region, Sub-Category]
+- ord_col = [Order Priority] with categories [Low, Medium, High, Critical]
 
-for name, model in models.items():
-    pipe = Pipeline(steps=[('preprocessor', preprocessor), ('model', model)])
-    pipe.fit(X_train, y_train)
-    y_pred = pipe.predict(X_test)
-    results[name] = {
-        'MAE': round(mean_absolute_error(y_test, y_pred), 2),
-        'RMSE': round(np.sqrt(mean_squared_error(y_test, y_pred)), 2),
-        'R2': round(r2_score(y_test, y_pred), 4)
-    }
+Build ColumnTransformer:
+- RobustScaler on num_cols
+- OneHotEncoder(drop='first', handle_unknown='ignore') on cat_cols
+- OrdinalEncoder on ord_col
 
-# --- STEP 7: COMPARE RESULTS ---
-results_df = pd.DataFrame(results).T
-print(results_df)
-print(f"\nBest Model by R2: {results_df['R2'].idxmax()}")
+Train all 3 models inside Pipeline:
+- LinearRegression()
+- RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1)
+- XGBRegressor(n_estimators=200, learning_rate=0.05, max_depth=6, random_state=42, n_jobs=-1)
+
+---
+
+### SECTION 13: EVALUATE AND COMPARE
+
+- Print MAE, RMSE, R2 for all 3 models in a comparison table
+- Print best model name by R2
+- Plot Actual vs Predicted for best model
+- Plot Top 15 feature importances for Random Forest and XGBoost
 
 Keep all code clean, modular, and notebook-ready. No markdown theory. Only code and print outputs.
