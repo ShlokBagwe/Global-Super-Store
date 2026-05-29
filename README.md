@@ -78,4 +78,65 @@ After all three models are trained and evaluated, print the following:
 
 ---
 
+
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import RobustScaler, OneHotEncoder, OrdinalEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.linear_model import LinearRegression
+from sklearn.ensemble import RandomForestRegressor
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+# --- STEP 1: LOG TRANSFORM SKEWED COLUMNS ---
+df['log_sales'] = np.log1p(df['Sales'])
+df['log_shipping_cost'] = np.log1p(df['Shipping Cost'])
+
+# --- STEP 2: DEFINE FEATURES AND TARGET ---
+X = df.drop(columns=['Profit', 'Sales', 'Shipping Cost'])
+y = df['Profit']
+
+# --- STEP 3: TRAIN TEST SPLIT ---
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# --- STEP 4: DEFINE COLUMN GROUPS ---
+num_cols = ['Quantity', 'Discount', 'log_sales', 'log_shipping_cost', 'Year', 'weeknum']
+
+cat_cols = ['Category', 'Segment', 'Ship Mode', 'Market', 'Region', 'Sub-Category']
+
+ord_col = ['Order Priority']
+
+# --- STEP 5: PREPROCESSOR ---
+preprocessor = ColumnTransformer(transformers=[
+    ('num', RobustScaler(), num_cols),
+    ('cat', OneHotEncoder(drop='first', sparse_output=False, handle_unknown='ignore'), cat_cols),
+    ('ord', OrdinalEncoder(categories=[['Low', 'Medium', 'High', 'Critical']]), ord_col)
+])
+
+# --- STEP 6: TRAIN ALL 3 MODELS ---
+models = {
+    'Linear Regression': LinearRegression(),
+    'Random Forest': RandomForestRegressor(n_estimators=200, random_state=42, n_jobs=-1),
+    'XGBoost': XGBRegressor(n_estimators=200, learning_rate=0.05, max_depth=6, random_state=42, n_jobs=-1)
+}
+
+results = {}
+
+for name, model in models.items():
+    pipe = Pipeline(steps=[('preprocessor', preprocessor), ('model', model)])
+    pipe.fit(X_train, y_train)
+    y_pred = pipe.predict(X_test)
+    results[name] = {
+        'MAE': round(mean_absolute_error(y_test, y_pred), 2),
+        'RMSE': round(np.sqrt(mean_squared_error(y_test, y_pred)), 2),
+        'R2': round(r2_score(y_test, y_pred), 4)
+    }
+
+# --- STEP 7: COMPARE RESULTS ---
+results_df = pd.DataFrame(results).T
+print(results_df)
+print(f"\nBest Model by R2: {results_df['R2'].idxmax()}")
+
 Keep all code clean, modular, and notebook-ready. No markdown theory. Only code and print outputs.
